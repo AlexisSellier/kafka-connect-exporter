@@ -41,31 +41,35 @@ func (e *exporter) Describe(ch chan<- *prometheus.Desc) {
 func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 	for name, endpoint := range e.config {
 		resp, err := http.Get("http://" + endpoint + "/connectors")
-		if err == nil {		
-			body, _ := ioutil.ReadAll(resp.Body)
-			defer resp.Body.Close()
-			var connectors []string
-			json.Unmarshal(body, &connectors)
-			for _, connector := range connectors {
-				status, error := http.Get("http://" + endpoint + "/connectors/" + connector + "/status")
-				if error == nil {
-					defer status.Body.Close()
-					var cstatus connectorStatus
-					b, _ := ioutil.ReadAll(status.Body)
-					json.Unmarshal(b, &cstatus)
-					running := 0
-					failing := 0
-					for _, task := range cstatus.Tasks {
-						if task.State == "RUNNING" {
-							running++
-						} else {
-							failing++
-						}
-					}
-					ch <- prometheus.MustNewConstMetric(e.runningTask,  prometheus.GaugeValue, float64(running), name, connector)
-					ch <- prometheus.MustNewConstMetric(e.failingTask,  prometheus.GaugeValue, float64(failing), name, connector)
+		if err != nil {
+			log.Fatal("Cannot retrived connectors list: %v\n", err)
+			return 
+		}
+		body, _ := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		var connectors []string
+		json.Unmarshal(body, &connectors)
+		for _, connector := range connectors {
+			status, error := http.Get("http://" + endpoint + "/connectors/" + connector + "/status")
+			if error != nil {
+				log.Fatal("Cannot retrieved connectors %s status: %v\n", connector, err)
+				return 
+			}
+			defer status.Body.Close()
+			var cstatus connectorStatus
+			b, _ := ioutil.ReadAll(status.Body)
+			json.Unmarshal(b, &cstatus)
+			running := 0
+			failing := 0
+			for _, task := range cstatus.Tasks {
+				if task.State == "RUNNING" {
+					running++
+				} else {
+					failing++
 				}
 			}
+			ch <- prometheus.MustNewConstMetric(e.runningTask,  prometheus.GaugeValue, float64(running), name, connector)
+			ch <- prometheus.MustNewConstMetric(e.failingTask,  prometheus.GaugeValue, float64(failing), name, connector)
 		}
 	}
 }
