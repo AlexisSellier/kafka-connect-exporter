@@ -42,7 +42,7 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 	for name, endpoint := range e.config {
 		resp, err := http.Get("http://" + endpoint + "/connectors")
 		if err != nil {
-			log.Fatal("Cannot retrived connectors list: %v\n", err)
+			log.Printf("Cannot retrived connectors list: %v\n", err)
 			return 
 		}
 		body, _ := ioutil.ReadAll(resp.Body)
@@ -52,7 +52,7 @@ func (e *exporter) Collect(ch chan<- prometheus.Metric) {
 		for _, connector := range connectors {
 			status, error := http.Get("http://" + endpoint + "/connectors/" + connector + "/status")
 			if error != nil {
-				log.Fatal("Cannot retrieved connectors %s status: %v\n", connector, err)
+				log.Printf("Cannot retrieved connectors %s status: %v\n", connector, err)
 				return 
 			}
 			defer status.Body.Close()
